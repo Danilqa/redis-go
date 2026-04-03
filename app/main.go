@@ -28,16 +28,31 @@ func main() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
+	parser := NewParser(conn)
+
 	for {
-		buf := make([]byte, 1024)
-		n, err := conn.Read(buf)
+		val, err := parser.Parse()
 		if err != nil {
-			fmt.Println("Failed to read buffer")
+			fmt.Printf("Failed to read buffer %s", err)
 			return
 		}
-		str := string(buf[:n])
-		for range strings.Count(str, "PING") {
+
+		if len(val.Array) == 0 {
+			conn.Write([]byte("-ERR empty command\r\n"))
+			continue
+		}
+
+		switch command := strings.ToUpper(val.Array[0].Str); command {
+		case "PING":
 			conn.Write([]byte("+PONG\r\n"))
+		case "ECHO":
+			if len(val.Array) < 2 {
+				conn.Write([]byte("-ERR wrong number of arguments for 'echo' command\r\n"))
+				continue
+			}
+			conn.Write([]byte(DecodeString(val.Array[1].Str)))
+		default:
+			conn.Write([]byte(fmt.Sprintf("-ERR unknown command '%s'\r\n", command)))
 		}
 	}
 }
