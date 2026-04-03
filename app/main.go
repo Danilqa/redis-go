@@ -33,7 +33,7 @@ func handleConnection(conn net.Conn) {
 		n, err := conn.Read(buf)
 		if err != nil {
 			fmt.Println("Failed to read buffer")
-			os.Exit(1)
+			return
 		}
 		str := string(buf[:n])
 		for range strings.Count(str, "PING") {
