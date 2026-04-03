@@ -7,10 +7,20 @@ import (
 	"strings"
 )
 
+type App struct {
+	storage *map[string]string
+}
+
 func main() {
-	l, err := net.Listen("tcp", "0.0.0.0:6379")
+	storage := make(map[string]string)
+	app := App{&storage}
+	app.run(6379)
+}
+
+func (app *App) run(port int16) {
+	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
-		fmt.Println("Failed to bind to port 6379")
+		fmt.Println(fmt.Sprintf("Failed to bind to port %d", port))
 		os.Exit(1)
 	}
 	defer l.Close()
@@ -21,11 +31,11 @@ func main() {
 			fmt.Println("Error accepting connection: ", err.Error())
 			continue
 		}
-		go handleConnection(conn)
+		go app.handleConnection(conn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func (app *App) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	parser := NewParser(conn)
@@ -47,12 +57,30 @@ func handleConnection(conn net.Conn) {
 			conn.Write([]byte("+PONG\r\n"))
 		case "ECHO":
 			if len(val.Array) < 2 {
-				conn.Write([]byte("-ERR wrong number of arguments for 'echo' command\r\n"))
+				conn.Write([]byte(ToSimpleError("ERR wrong number of arguments for 'echo' command")))
 				continue
 			}
-			conn.Write([]byte(DecodeString(val.Array[1].Str)))
+			conn.Write([]byte(ToBulkString(val.Array[1].Str)))
+		case "SET":
+			if len(val.Array) < 3 {
+				conn.Write([]byte(ToSimpleError("ERR wrong number of arguments for 'set' command")))
+				continue
+			}
+			key := val.Array[1]
+			value := val.Array[2]
+			(*app.storage)[key.Str] = value.Str
+			conn.Write([]byte(ToSimpleString("OK")))
+		case "GET":
+			key := val.Array[1]
+			val, ok := (*app.storage)[key.Str]
+			if ok {
+				conn.Write([]byte(ToBulkString(val)))
+			} else {
+				conn.Write([]byte(ToNullBulkStrings()))
+			}
 		default:
-			conn.Write([]byte(fmt.Sprintf("-ERR unknown command '%s'\r\n", command)))
+			err := fmt.Sprintf("ERR unknown command '%s'", command)
+			conn.Write([]byte(ToSimpleError(err)))
 		}
 	}
 }
