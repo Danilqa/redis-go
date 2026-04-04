@@ -12,16 +12,15 @@ type App struct {
 }
 
 func main() {
-	data := make(map[string]StorageValue)
-	storage := Storage{Storage: &data}
-	app := App{&storage}
+	storage := Storage{storage: make(map[string]StorageValue)}
+	app := App{Storage: &storage}
 	app.run(6379)
 }
 
-func (app *App) run(port int16) {
+func (app *App) run(port int) {
 	l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
-		fmt.Println(fmt.Sprintf("Failed to bind to port %d", port))
+		fmt.Printf("Failed to bind to port %d\n", port)
 		os.Exit(1)
 	}
 	defer l.Close()
@@ -55,7 +54,7 @@ func (app *App) handleConnection(conn net.Conn) {
 
 		switch command := strings.ToUpper(val.Array[0].Str); command {
 		case "PING":
-			conn.Write([]byte(ToSimpleError("PONG")))
+			conn.Write([]byte(ToSimpleString("PONG")))
 		case "ECHO":
 			if len(val.Array) < 2 {
 				conn.Write([]byte(ToSimpleError("ERR wrong number of arguments for 'echo' command")))
@@ -64,7 +63,11 @@ func (app *App) handleConnection(conn net.Conn) {
 			conn.Write([]byte(ToBulkString(val.Array[1].Str)))
 		case "SET":
 			_, err = app.Storage.SetValue(val)
-			conn.Write([]byte(ToSimpleString("OK")))
+			if err != nil {
+				conn.Write([]byte(ToSimpleError(err.Error())))
+			} else {
+				conn.Write([]byte(ToSimpleString("OK")))
+			}
 		case "GET":
 			value, err := app.Storage.GetValue(val)
 			if err != nil {

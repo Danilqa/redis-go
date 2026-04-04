@@ -4,64 +4,73 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
 type Storage struct {
-	Storage *map[string]StorageValue
+	mu      sync.RWMutex
+	storage map[string]StorageValue
 }
 
 func (s *Storage) GetValue(args Value) (string, error) {
-	key := args.Array[1]
-	item, ok := (*s.Storage)[key.Str]
-	if ok {
-		if item.IsExpired() {
-			delete((*s.Storage), key.Str)
-			return "", errors.New("Not found")
-		}
-		return item.Value, nil
-	} else {
+	key := args.Array[1].Str
+	s.mu.RLock()
+	item, ok := s.storage[key]
+	s.mu.RUnlock()
+	if !ok {
 		return "", errors.New("Not found")
 	}
+	if item.IsExpired() {
+		s.mu.Lock()
+		delete(s.storage, key)
+		s.mu.Unlock()
+		return "", errors.New("Not found")
+	}
+	return item.Value, nil
 }
 
 func (s *Storage) SetValue(args Value) (any, error) {
 	if len(args.Array) < 3 {
 		return nil, errors.New("ERR wrong number of arguments for 'set' command")
 	}
-	key := args.Array[1]
-	value := args.Array[2]
-	expireCommand := args.Array[3]
-	expireValue := args.Array[4]
-	if !expireCommand.IsNull && expireValue.IsNull {
-		return nil, errors.New(fmt.Sprintf("ERR wrong number of arguments for '%s' command", expireValue.Str))
-	}
+	key := args.Array[1].Str
+	value := args.Array[2].Str
 
-	var expireInMs time.Duration
-	switch strings.ToUpper(expireCommand.Str) {
-	case "EX":
-		{
-			res, err := time.ParseDuration(fmt.Sprintf("%ss", expireValue.Str))
+	var expire *time.Duration
+
+	if len(args.Array) >= 4 {
+		expireCommand := strings.ToUpper(args.Array[3].Str)
+		if len(args.Array) < 5 {
+			return nil, fmt.Errorf("ERR wrong number of arguments for '%s' command", expireCommand)
+		}
+		expireValue := args.Array[4].Str
+
+		switch expireCommand {
+		case "EX":
+			res, err := time.ParseDuration(fmt.Sprintf("%ss", expireValue))
 			if err != nil {
 				return nil, errors.New("ERR failed to parse expire time")
 			}
-			expireInMs = res
-		}
-	case "PX":
-		{
-			res, err := time.ParseDuration(fmt.Sprintf("%sms", expireValue.Str))
+			expire = &res
+		case "PX":
+			res, err := time.ParseDuration(fmt.Sprintf("%sms", expireValue))
 			if err != nil {
 				return nil, errors.New("ERR failed to parse expire time")
 			}
-			expireInMs = res
+			expire = &res
+		default:
+			return nil, fmt.Errorf("ERR unsupported option '%s'", expireCommand)
 		}
 	}
 
-	(*s.Storage)[key.Str] = StorageValue{
-		Value:      value.Str,
+	s.mu.Lock()
+	s.storage[key] = StorageValue{
+		Value:      value,
 		CreatedAt:  time.Now(),
-		ExpireInMs: &expireInMs,
+		ExpireInMs: expire,
 	}
+	s.mu.Unlock()
 
 	return nil, nil
 }
