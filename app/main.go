@@ -8,11 +8,12 @@ import (
 )
 
 type App struct {
-	storage *map[string]string
+	Storage *Storage
 }
 
 func main() {
-	storage := make(map[string]string)
+	data := make(map[string]StorageValue)
+	storage := Storage{Storage: &data}
 	app := App{&storage}
 	app.run(6379)
 }
@@ -54,7 +55,7 @@ func (app *App) handleConnection(conn net.Conn) {
 
 		switch command := strings.ToUpper(val.Array[0].Str); command {
 		case "PING":
-			conn.Write([]byte("+PONG\r\n"))
+			conn.Write([]byte(ToSimpleError("PONG")))
 		case "ECHO":
 			if len(val.Array) < 2 {
 				conn.Write([]byte(ToSimpleError("ERR wrong number of arguments for 'echo' command")))
@@ -62,21 +63,14 @@ func (app *App) handleConnection(conn net.Conn) {
 			}
 			conn.Write([]byte(ToBulkString(val.Array[1].Str)))
 		case "SET":
-			if len(val.Array) < 3 {
-				conn.Write([]byte(ToSimpleError("ERR wrong number of arguments for 'set' command")))
-				continue
-			}
-			key := val.Array[1]
-			value := val.Array[2]
-			(*app.storage)[key.Str] = value.Str
+			_, err = app.Storage.SetValue(val)
 			conn.Write([]byte(ToSimpleString("OK")))
 		case "GET":
-			key := val.Array[1]
-			val, ok := (*app.storage)[key.Str]
-			if ok {
-				conn.Write([]byte(ToBulkString(val)))
-			} else {
+			value, err := app.Storage.GetValue(val)
+			if err != nil {
 				conn.Write([]byte(ToNullBulkStrings()))
+			} else {
+				conn.Write([]byte(ToBulkString(value)))
 			}
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
