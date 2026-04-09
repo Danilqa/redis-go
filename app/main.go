@@ -12,7 +12,7 @@ type App struct {
 }
 
 func main() {
-	storage := Storage{storage: make(map[string]StorageValue)}
+	storage := Storage{storage: make(map[string]*StorageValue)}
 	app := App{Storage: &storage}
 	app.run(6379)
 }

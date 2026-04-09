@@ -10,7 +10,7 @@ import (
 
 type Storage struct {
 	mu      sync.RWMutex
-	storage map[string]StorageValue
+	storage map[string]*StorageValue
 }
 
 func (s *Storage) GetValue(args Value) (string, error) {
@@ -69,7 +69,7 @@ func (s *Storage) SetValue(args Value) (any, error) {
 	}
 
 	s.mu.Lock()
-	s.storage[key] = StorageValue{
+	s.storage[key] = &StorageValue{
 		Value:      value,
 		CreatedAt:  time.Now(),
 		ExpireInMs: expire,
@@ -86,18 +86,14 @@ func (s *Storage) SetArrayValue(args Value) (int, error) {
 	key := args.Array[1].Str
 	value := args.Array[2].Str
 
-	s.mu.RLock()
-	maybeExistingList, ok := s.storage[key]
-	s.mu.RUnlock()
-	if ok {
-		s.mu.Lock()
-		maybeExistingList.Value = append(maybeExistingList.Value.([]string), value)
-		s.mu.Unlock()
-		return len(maybeExistingList.Value.([]string)), nil
-	}
-
 	s.mu.Lock()
-	s.storage[key] = StorageValue{
+	existing, ok := s.storage[key]
+	if ok {
+		existing.Value = append(existing.Value.([]string), value)
+		s.mu.Unlock()
+		return len(existing.Value.([]string)), nil
+	}
+	s.storage[key] = &StorageValue{
 		Value:     []string{value},
 		CreatedAt: time.Now(),
 	}
