@@ -27,7 +27,11 @@ func (s *Storage) GetValue(args Value) (string, error) {
 		s.mu.Unlock()
 		return "", errors.New("Not found")
 	}
-	return item.Value, nil
+	str, ok := item.Value.(string)
+	if !ok {
+		return "", errors.New("ERR value is not a string")
+	}
+	return str, nil
 }
 
 func (s *Storage) SetValue(args Value) (any, error) {
@@ -73,4 +77,31 @@ func (s *Storage) SetValue(args Value) (any, error) {
 	s.mu.Unlock()
 
 	return nil, nil
+}
+
+func (s *Storage) SetArrayValue(args Value) (int, error) {
+	if len(args.Array) < 3 {
+		return 0, errors.New("ERR wrong number of arguments for 'rpush' command")
+	}
+	key := args.Array[1].Str
+	value := args.Array[2].Str
+
+	s.mu.RLock()
+	maybeExistingList, ok := s.storage[key]
+	s.mu.RUnlock()
+	if ok {
+		s.mu.Lock()
+		maybeExistingList.Value = append(maybeExistingList.Value.([]string), value)
+		s.mu.Unlock()
+		return len(maybeExistingList.Value.([]string)), nil
+	}
+
+	s.mu.Lock()
+	s.storage[key] = StorageValue{
+		Value:     []string{value},
+		CreatedAt: time.Now(),
+	}
+	s.mu.Unlock()
+
+	return 1, nil
 }

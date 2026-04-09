@@ -3,7 +3,7 @@ package main
 import "time"
 
 type StorageValue struct {
-	Value      string
+	Value      any
 	CreatedAt  time.Time
 	ExpireInMs *time.Duration
 }
