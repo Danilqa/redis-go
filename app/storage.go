@@ -105,7 +105,7 @@ func (s *Storage) GetArrayValues(args Value) ([]string, error) {
 	val := item.Value.([]string)
 	length := int64(len(val))
 
-	if start >= length || start > stop {
+	if start >= length {
 		return []string{}, nil
 	}
 	if stop >= length {
