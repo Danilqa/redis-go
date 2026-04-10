@@ -108,11 +108,15 @@ func (s *Storage) GetArrayValues(args Value) ([]string, error) {
 	if start >= length || start > stop {
 		return []string{}, nil
 	}
-
 	if stop >= length {
 		stop = length - 1
 	}
-	fmt.Println(start, stop)
+	if start < 0 {
+		start = max(0, length+start)
+	}
+	if stop < 0 {
+		stop = max(0, length+stop)
+	}
 	return val[start : stop+1], nil
 }
 
