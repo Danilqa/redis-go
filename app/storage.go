@@ -84,20 +84,23 @@ func (s *Storage) SetArrayValue(args Value) (int, error) {
 		return 0, errors.New("ERR wrong number of arguments for 'rpush' command")
 	}
 	key := args.Array[1].Str
-	value := args.Array[2].Str
+	values := []string{}
+	for _, v := range args.Array[2:] {
+		values = append(values, v.Str)
+	}
 
 	s.mu.Lock()
 	existing, ok := s.storage[key]
 	if ok {
-		existing.Value = append(existing.Value.([]string), value)
+		existing.Value = append(existing.Value.([]string), values...)
 		s.mu.Unlock()
 		return len(existing.Value.([]string)), nil
 	}
 	s.storage[key] = &StorageValue{
-		Value:     []string{value},
+		Value:     values,
 		CreatedAt: time.Now(),
 	}
 	s.mu.Unlock()
 
-	return 1, nil
+	return len(values), nil
 }
