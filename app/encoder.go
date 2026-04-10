@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 func ToBulkString(str string) string {
@@ -22,4 +23,8 @@ func ToNullBulkStrings() string {
 
 func ToInteger(num int) string {
 	return fmt.Sprintf(":%d\r\n", num)
+}
+
+func ToArray(values []string) string {
+	return fmt.Sprintf("*%d\r\n%s", len(values), strings.Join(values, ""))
 }

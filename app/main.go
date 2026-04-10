@@ -65,23 +65,38 @@ func (app *App) handleConnection(conn net.Conn) {
 			_, err := app.Storage.SetValue(val)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
-			} else {
-				conn.Write([]byte(ToSimpleString("OK")))
 			}
+
+			conn.Write([]byte(ToSimpleString("OK")))
+			continue
 		case "GET":
 			value, err := app.Storage.GetValue(val)
 			if err != nil {
 				conn.Write([]byte(ToNullBulkStrings()))
-			} else {
-				conn.Write([]byte(ToBulkString(value)))
+				continue
 			}
+
+			conn.Write([]byte(ToBulkString(value)))
 		case "RPUSH":
 			count, err := app.Storage.SetArrayValue(val)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
-			} else {
-				conn.Write([]byte(ToInteger(count)))
+				continue
 			}
+
+			conn.Write([]byte(ToInteger(count)))
+		case "LRANGE":
+			values, err := app.Storage.GetArrayValues(val)
+			if err != nil {
+				conn.Write([]byte(ToArray([]string{})))
+				continue
+			}
+
+			arr := make([]string, 0, len(values))
+			for _, v := range values {
+				arr = append(arr, ToBulkString(v))
+			}
+			conn.Write([]byte(ToArray(arr)))
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))

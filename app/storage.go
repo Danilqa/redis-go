@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,7 +37,7 @@ func (s *Storage) GetValue(args Value) (string, error) {
 
 func (s *Storage) SetValue(args Value) (any, error) {
 	if len(args.Array) < 3 {
-		return nil, errors.New("ERR wrong number of arguments for 'set' command")
+		return nil, errors.New("ERR wrong number of arguments")
 	}
 	key := args.Array[1].Str
 	value := args.Array[2].Str
@@ -79,9 +80,45 @@ func (s *Storage) SetValue(args Value) (any, error) {
 	return nil, nil
 }
 
+func (s *Storage) GetArrayValues(args Value) ([]string, error) {
+	if len(args.Array) < 4 {
+		return []string{}, errors.New("ERR wrong number of arguments")
+	}
+	key := args.Array[1].Str
+	start, err := strconv.ParseInt(args.Array[2].Str, 10, 64)
+	if err != nil {
+		return []string{}, errors.New("ERR invalid start argument")
+	}
+	stop, err := strconv.ParseInt(args.Array[3].Str, 10, 64)
+	if err != nil {
+		return []string{}, errors.New("ERR invalid stop argument")
+	}
+
+	s.mu.RLock()
+	item, ok := s.storage[key]
+	s.mu.RUnlock()
+
+	if !ok {
+		return []string{}, nil
+	}
+
+	val := item.Value.([]string)
+	length := int64(len(val))
+
+	if start >= length || start > stop {
+		return []string{}, nil
+	}
+
+	if stop >= length {
+		stop = length - 1
+	}
+	fmt.Println(start, stop)
+	return val[start : stop+1], nil
+}
+
 func (s *Storage) SetArrayValue(args Value) (int, error) {
 	if len(args.Array) < 3 {
-		return 0, errors.New("ERR wrong number of arguments for 'rpush' command")
+		return 0, errors.New("ERR wrong number of arguments")
 	}
 	key := args.Array[1].Str
 	values := []string{}

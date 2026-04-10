@@ -89,6 +89,7 @@ func (p *Parser) parseInteger() (Value, error) {
 		return Value{}, err
 	}
 	n, err := strconv.ParseInt(line, 10, 64)
+	fmt.Printf("%d", n)
 	if err != nil {
 		return Value{}, fmt.Errorf("invalid integer: %w", err)
 	}
