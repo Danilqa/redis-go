@@ -178,16 +178,20 @@ func (s *Storage) Pop(args Value) ([]string, error) {
 		return EmptyStrings, errors.New("ERR wrong number of arguments")
 	}
 	key := args.Array[1].Str
-	count, err := strconv.ParseInt(args.Array[2].Str, 10, 64)
-	if err != nil {
-		return EmptyStrings, errors.New("ERR invalid arguments")
+	count := 1
+	if len(args.Array) == 3 {
+		parsedCount, err := strconv.ParseInt(args.Array[2].Str, 10, 64)
+		if err != nil {
+			return EmptyStrings, errors.New("ERR invalid arguments")
+		}
+		count = int(parsedCount)
 	}
 
 	s.mu.Lock()
 	existing, ok := s.storage[key]
 	if ok {
 		l := existing.Value.(*List)
-		removed, err := l.Pop(int(count))
+		removed, err := l.Pop(count)
 		if err != nil {
 			return EmptyStrings, nil
 		}
