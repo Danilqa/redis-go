@@ -46,11 +46,15 @@ func (l *List) Len() int {
 	return l.data.Len()
 }
 
-func (l *List) Pop() (string, error) {
+func (l *List) Pop(len int) ([]string, error) {
 	if l.data.Len() == 0 {
-		return "", errors.New("Empty list")
+		return []string{}, errors.New("Empty list")
 	}
-	front := l.data.Front()
-	l.data.Remove(front)
-	return front.Value.(string), nil
+	removed := []string{}
+	for range len {
+		front := l.data.Front()
+		l.data.Remove(front)
+		removed = append(removed, front.Value.(string))
+	}
+	return removed, nil
 }

@@ -114,16 +114,24 @@ func (app *App) handleConnection(conn net.Conn) {
 			}
 			conn.Write([]byte(ToInteger(len)))
 		case "LPOP":
-			value, ok, err := app.Storage.Pop(args)
+			values, err := app.Storage.Pop(args)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
 				continue
 			}
-			if !ok {
-				conn.Write([]byte(ToBulkString("none")))
+			if len(values) == 0 {
+				conn.Write([]byte(ToNullBulkStrings()))
 				continue
 			}
-			conn.Write([]byte(ToBulkString(value)))
+			if len(values) == 1 {
+				conn.Write([]byte(ToBulkString(values[0])))
+				continue
+			}
+			arr := make([]string, 0, len(values))
+			for _, v := range values {
+				arr = append(arr, ToBulkString(v))
+			}
+			conn.Write([]byte(ToArray(arr)))
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))

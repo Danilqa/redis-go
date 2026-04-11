@@ -14,6 +14,8 @@ type Storage struct {
 	storage map[string]*StorageValue
 }
 
+var EmptyStrings = []string{}
+
 func (s *Storage) GetValue(args Value) (string, error) {
 	key := args.Array[1].Str
 	s.mu.RLock()
@@ -82,16 +84,16 @@ func (s *Storage) SetValue(args Value) (any, error) {
 
 func (s *Storage) GetArrayValues(args Value) ([]string, error) {
 	if len(args.Array) < 4 {
-		return []string{}, errors.New("ERR wrong number of arguments")
+		return EmptyStrings, errors.New("ERR wrong number of arguments")
 	}
 	key := args.Array[1].Str
 	start, err := strconv.ParseInt(args.Array[2].Str, 10, 64)
 	if err != nil {
-		return []string{}, errors.New("ERR invalid start argument")
+		return EmptyStrings, errors.New("ERR invalid start argument")
 	}
 	stop, err := strconv.ParseInt(args.Array[3].Str, 10, 64)
 	if err != nil {
-		return []string{}, errors.New("ERR invalid stop argument")
+		return EmptyStrings, errors.New("ERR invalid stop argument")
 	}
 
 	s.mu.RLock()
@@ -99,14 +101,14 @@ func (s *Storage) GetArrayValues(args Value) ([]string, error) {
 	s.mu.RUnlock()
 
 	if !ok {
-		return []string{}, nil
+		return EmptyStrings, nil
 	}
 
 	l := item.Value.(*List)
 	length := int64(l.Len())
 
 	if start >= length {
-		return []string{}, nil
+		return EmptyStrings, nil
 	}
 	if stop >= length {
 		stop = length - 1
@@ -171,24 +173,28 @@ func (s *Storage) SetArrayValue(args Value, isLeft bool) (int, error) {
 	return len(values), nil
 }
 
-func (s *Storage) Pop(args Value) (string, bool, error) {
-	if len(args.Array) != 2 {
-		return "", false, errors.New("ERR wrong number of arguments")
+func (s *Storage) Pop(args Value) ([]string, error) {
+	if len(args.Array) > 3 || len(args.Array) < 2 {
+		return EmptyStrings, errors.New("ERR wrong number of arguments")
 	}
 	key := args.Array[1].Str
+	count, err := strconv.ParseInt(args.Array[2].Str, 10, 64)
+	if err != nil {
+		return EmptyStrings, errors.New("ERR invalid arguments")
+	}
 
 	s.mu.Lock()
 	existing, ok := s.storage[key]
 	if ok {
 		l := existing.Value.(*List)
-		value, err := l.Pop()
+		removed, err := l.Pop(int(count))
 		if err != nil {
-			return "", false, nil
+			return EmptyStrings, nil
 		}
 		s.mu.Unlock()
-		return value, true, nil
+		return removed, nil
 	}
 
 	s.mu.Unlock()
-	return "", false, nil
+	return EmptyStrings, nil
 }
