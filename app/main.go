@@ -41,28 +41,28 @@ func (app *App) handleConnection(conn net.Conn) {
 	parser := NewParser(conn)
 
 	for {
-		val, err := parser.Parse()
+		args, err := parser.Parse()
 		if err != nil {
 			fmt.Printf("Failed to read buffer %s", err)
 			return
 		}
 
-		if len(val.Array) == 0 {
+		if len(args.Array) == 0 {
 			conn.Write([]byte("-ERR empty command\r\n"))
 			continue
 		}
 
-		switch command := strings.ToUpper(val.Array[0].Str); command {
+		switch command := strings.ToUpper(args.Array[0].Str); command {
 		case "PING":
 			conn.Write([]byte(ToSimpleString("PONG")))
 		case "ECHO":
-			if len(val.Array) < 2 {
+			if len(args.Array) < 2 {
 				conn.Write([]byte(ToSimpleError("ERR wrong number of arguments for 'echo' command")))
 				continue
 			}
-			conn.Write([]byte(ToBulkString(val.Array[1].Str)))
+			conn.Write([]byte(ToBulkString(args.Array[1].Str)))
 		case "SET":
-			_, err := app.Storage.SetValue(val)
+			_, err := app.Storage.SetValue(args)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
 			}
@@ -70,7 +70,7 @@ func (app *App) handleConnection(conn net.Conn) {
 			conn.Write([]byte(ToSimpleString("OK")))
 			continue
 		case "GET":
-			value, err := app.Storage.GetValue(val)
+			value, err := app.Storage.GetValue(args)
 			if err != nil {
 				conn.Write([]byte(ToNullBulkStrings()))
 				continue
@@ -78,7 +78,7 @@ func (app *App) handleConnection(conn net.Conn) {
 
 			conn.Write([]byte(ToBulkString(value)))
 		case "RPUSH":
-			count, err := app.Storage.SetArrayValue(val, false)
+			count, err := app.Storage.SetArrayValue(args, false)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
 				continue
@@ -86,7 +86,7 @@ func (app *App) handleConnection(conn net.Conn) {
 
 			conn.Write([]byte(ToInteger(count)))
 		case "LPUSH":
-			count, err := app.Storage.SetArrayValue(val, true)
+			count, err := app.Storage.SetArrayValue(args, true)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
 				continue
@@ -94,7 +94,7 @@ func (app *App) handleConnection(conn net.Conn) {
 
 			conn.Write([]byte(ToInteger(count)))
 		case "LRANGE":
-			values, err := app.Storage.GetArrayValues(val)
+			values, err := app.Storage.GetArrayValues(args)
 			if err != nil {
 				conn.Write([]byte(ToArray([]string{})))
 				continue
@@ -105,6 +105,12 @@ func (app *App) handleConnection(conn net.Conn) {
 				arr = append(arr, ToBulkString(v))
 			}
 			conn.Write([]byte(ToArray(arr)))
+		case "LLEN":
+			len, err := app.Storage.Len(args)
+			if err != nil {
+				conn.Write([]byte(ToSimpleError(err.Error())))
+			}
+			conn.Write([]byte(ToInteger(len)))
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))

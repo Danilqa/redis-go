@@ -120,6 +120,20 @@ func (s *Storage) GetArrayValues(args Value) ([]string, error) {
 	return l.GetRange(int(start), int(stop+1)), nil
 }
 
+func (s *Storage) Len(args Value) (int, error) {
+	if len(args.Array) < 2 {
+		return 0, errors.New("ERR wrong number of arguments")
+	}
+	key := args.Array[1].Str
+	existing, ok := s.storage[key]
+	if ok {
+		l := existing.Value.(*List)
+		return l.Len(), nil
+	}
+
+	return 0, nil
+}
+
 func (s *Storage) SetArrayValue(args Value, isLeft bool) (int, error) {
 	if len(args.Array) < 3 {
 		return 0, errors.New("ERR wrong number of arguments")
