@@ -170,3 +170,25 @@ func (s *Storage) SetArrayValue(args Value, isLeft bool) (int, error) {
 
 	return len(values), nil
 }
+
+func (s *Storage) Pop(args Value) (string, bool, error) {
+	if len(args.Array) != 2 {
+		return "", false, errors.New("ERR wrong number of arguments")
+	}
+	key := args.Array[1].Str
+
+	s.mu.Lock()
+	existing, ok := s.storage[key]
+	if ok {
+		l := existing.Value.(*List)
+		value, err := l.Pop()
+		if err != nil {
+			return "", false, nil
+		}
+		s.mu.Unlock()
+		return value, true, nil
+	}
+
+	s.mu.Unlock()
+	return "", false, nil
+}

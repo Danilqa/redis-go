@@ -2,6 +2,7 @@ package main
 
 import (
 	"container/list"
+	"errors"
 )
 
 type List struct {
@@ -43,4 +44,13 @@ func (l *List) Prepend(values []string) {
 
 func (l *List) Len() int {
 	return l.data.Len()
+}
+
+func (l *List) Pop() (string, error) {
+	if l.data.Len() == 0 {
+		return "", errors.New("Empty list")
+	}
+	front := l.data.Front()
+	l.data.Remove(front)
+	return front.Value.(string), nil
 }

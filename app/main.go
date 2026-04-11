@@ -65,6 +65,7 @@ func (app *App) handleConnection(conn net.Conn) {
 			_, err := app.Storage.SetValue(args)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
+				continue
 			}
 
 			conn.Write([]byte(ToSimpleString("OK")))
@@ -109,8 +110,20 @@ func (app *App) handleConnection(conn net.Conn) {
 			len, err := app.Storage.Len(args)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
+				continue
 			}
 			conn.Write([]byte(ToInteger(len)))
+		case "LPOP":
+			value, ok, err := app.Storage.Pop(args)
+			if err != nil {
+				conn.Write([]byte(ToSimpleError(err.Error())))
+				continue
+			}
+			if !ok {
+				conn.Write([]byte(ToBulkString("none")))
+				continue
+			}
+			conn.Write([]byte(ToBulkString(value)))
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))
