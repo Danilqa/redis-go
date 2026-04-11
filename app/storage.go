@@ -102,8 +102,8 @@ func (s *Storage) GetArrayValues(args Value) ([]string, error) {
 		return []string{}, nil
 	}
 
-	val := item.Value.([]string)
-	length := int64(len(val))
+	l := item.Value.(*List)
+	length := int64(l.Len())
 
 	if start >= length {
 		return []string{}, nil
@@ -117,10 +117,10 @@ func (s *Storage) GetArrayValues(args Value) ([]string, error) {
 	if stop < 0 {
 		stop = max(0, length+stop)
 	}
-	return val[start : stop+1], nil
+	return l.GetRange(int(start), int(stop+1)), nil
 }
 
-func (s *Storage) SetArrayValue(args Value) (int, error) {
+func (s *Storage) SetArrayValue(args Value, isLeft bool) (int, error) {
 	if len(args.Array) < 3 {
 		return 0, errors.New("ERR wrong number of arguments")
 	}
@@ -133,12 +133,23 @@ func (s *Storage) SetArrayValue(args Value) (int, error) {
 	s.mu.Lock()
 	existing, ok := s.storage[key]
 	if ok {
-		existing.Value = append(existing.Value.([]string), values...)
+		l := existing.Value.(*List)
+		if isLeft {
+			l.Prepend(values)
+		} else {
+			l.Append(values)
+		}
 		s.mu.Unlock()
-		return len(existing.Value.([]string)), nil
+		return l.Len(), nil
+	}
+	l := NewList(nil)
+	if isLeft {
+		l.Prepend(values)
+	} else {
+		l.Append(values)
 	}
 	s.storage[key] = &StorageValue{
-		Value:     values,
+		Value:     l,
 		CreatedAt: time.Now(),
 	}
 	s.mu.Unlock()

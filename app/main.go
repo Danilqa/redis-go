@@ -78,7 +78,15 @@ func (app *App) handleConnection(conn net.Conn) {
 
 			conn.Write([]byte(ToBulkString(value)))
 		case "RPUSH":
-			count, err := app.Storage.SetArrayValue(val)
+			count, err := app.Storage.SetArrayValue(val, false)
+			if err != nil {
+				conn.Write([]byte(ToSimpleError(err.Error())))
+				continue
+			}
+
+			conn.Write([]byte(ToInteger(count)))
+		case "LPUSH":
+			count, err := app.Storage.SetArrayValue(val, true)
 			if err != nil {
 				conn.Write([]byte(ToSimpleError(err.Error())))
 				continue
