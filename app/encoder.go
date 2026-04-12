@@ -21,6 +21,10 @@ func ToNullBulkStrings() string {
 	return "$-1\r\n"
 }
 
+func ToNullArray() string {
+	return "*-1\r\n"
+}
+
 func ToInteger(num int) string {
 	return fmt.Sprintf(":%d\r\n", num)
 }

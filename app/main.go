@@ -142,7 +142,7 @@ func (app *App) handleConnection(conn net.Conn) {
 				continue
 			}
 			if result == nil {
-				conn.Write([]byte(ToNullBulkStrings()))
+				conn.Write([]byte(ToNullArray()))
 			} else {
 				conn.Write([]byte(ToArray([]string{
 					ToBulkString(result.Key),
