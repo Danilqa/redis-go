@@ -12,7 +12,10 @@ type App struct {
 }
 
 func main() {
-	storage := Storage{storage: make(map[string]*StorageValue)}
+	storage := Storage{
+		storage: make(map[string]*StorageValue),
+		waiters: make(map[string][]chan PopResult),
+	}
 	app := App{Storage: &storage}
 	app.run(6379)
 }
@@ -132,6 +135,20 @@ func (app *App) handleConnection(conn net.Conn) {
 				arr = append(arr, ToBulkString(v))
 			}
 			conn.Write([]byte(ToArray(arr)))
+		case "BLPOP":
+			result, err := app.Storage.BlockPop(args)
+			if err != nil {
+				conn.Write([]byte(ToSimpleError(err.Error())))
+				continue
+			}
+			if result == nil {
+				conn.Write([]byte(ToNullBulkStrings()))
+			} else {
+				conn.Write([]byte(ToArray([]string{
+					ToBulkString(result.Key),
+					ToBulkString(result.Value),
+				})))
+			}
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))
