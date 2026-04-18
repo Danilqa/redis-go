@@ -4,6 +4,7 @@ import "time"
 
 type StorageValue struct {
 	Value      any
+	Type       string
 	CreatedAt  time.Time
 	ExpireInMs *time.Duration
 }

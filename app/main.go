@@ -149,6 +149,9 @@ func (app *App) handleConnection(conn net.Conn) {
 					ToBulkString(result.Value),
 				})))
 			}
+		case "TYPE":
+			t := app.Storage.GetType(args)
+			conn.Write([]byte(ToSimpleString(t)))
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))

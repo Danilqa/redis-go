@@ -66,6 +66,7 @@ func (s *Storage) SetValue(args Value) (any, error) {
 	s.storage[key] = &StorageValue{
 		Value:      value,
 		CreatedAt:  time.Now(),
+		Type:       "string",
 		ExpireInMs: expire,
 	}
 	s.mu.Unlock()

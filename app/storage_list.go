@@ -95,6 +95,7 @@ func (s *Storage) SetArrayValue(args Value, isLeft bool) (int, error) {
 	s.storage[key] = &StorageValue{
 		Value:     l,
 		CreatedAt: time.Now(),
+		Type:      "list",
 	}
 	s.notifyWaiters(key, s.storage[key])
 	s.mu.Unlock()
