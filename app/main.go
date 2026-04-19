@@ -152,6 +152,14 @@ func (app *App) handleConnection(conn net.Conn) {
 		case "TYPE":
 			t := app.Storage.GetType(args)
 			conn.Write([]byte(ToSimpleString(t)))
+		case "XADD":
+			id, err := app.Storage.AddStreamValue(args)
+			if err != nil {
+				conn.Write([]byte(ToSimpleError(err.Error())))
+				continue
+			}
+
+			conn.Write([]byte(ToSimpleString(id)))
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))
