@@ -1,34 +1,34 @@
-package main
+package resp
 
 import (
 	"fmt"
 	"strings"
 )
 
-func ToBulkString(str string) string {
+func BulkString(str string) string {
 	return fmt.Sprintf("$%d\r\n%s\r\n", len(str), str)
 }
 
-func ToSimpleString(str string) string {
+func SimpleString(str string) string {
 	return fmt.Sprintf("+%s\r\n", str)
 }
 
-func ToSimpleError(str string) string {
+func SimpleError(str string) string {
 	return fmt.Sprintf("-%s\r\n", str)
 }
 
-func ToNullBulkStrings() string {
+func NullBulkString() string {
 	return "$-1\r\n"
 }
 
-func ToNullArray() string {
+func NullArray() string {
 	return "*-1\r\n"
 }
 
-func ToInteger(num int) string {
+func Integer(num int) string {
 	return fmt.Sprintf(":%d\r\n", num)
 }
 
-func ToArray(values []string) string {
+func Array(values []string) string {
 	return fmt.Sprintf("*%d\r\n%s", len(values), strings.Join(values, ""))
 }

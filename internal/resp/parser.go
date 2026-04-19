@@ -1,4 +1,4 @@
-package main
+package resp
 
 import (
 	"bufio"
@@ -7,14 +7,6 @@ import (
 	"io"
 	"strconv"
 )
-
-type Value struct {
-	Typ    byte
-	Str    string
-	Num    int64
-	Array  []Value
-	IsNull bool
-}
 
 type Parser struct {
 	reader *bufio.Reader

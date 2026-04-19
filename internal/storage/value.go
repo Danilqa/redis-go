@@ -1,15 +1,15 @@
-package main
+package storage
 
 import "time"
 
-type StorageValue struct {
+type storageValue struct {
 	Value      any
 	Type       string
 	CreatedAt  time.Time
 	ExpireInMs *time.Duration
 }
 
-func (sv *StorageValue) IsExpired() bool {
+func (sv *storageValue) isExpired() bool {
 	if sv.ExpireInMs == nil {
 		return false
 	}
