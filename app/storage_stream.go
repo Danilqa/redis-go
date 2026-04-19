@@ -12,14 +12,25 @@ type Id struct {
 	Seq uint64
 }
 
-func (new *Id) IsValidTo(prev *Id) bool {
+func (id *Id) ValidateMin() error {
+	if id.Ms == 0 && id.Seq == 0 {
+		return errors.New("ERR The ID specified in XADD must be greater than 0-0")
+	}
+	return nil
+}
+
+func (new *Id) ValidateOrder(prev *Id) error {
 	if new.Ms > prev.Ms {
-		return true
+		return nil
 	}
 	if new.Ms < prev.Ms {
-		return false
+		return errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 	}
-	return new.Seq > prev.Seq
+	if new.Seq > prev.Seq {
+		return nil
+	} else {
+		return errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+	}
 }
 
 func IdFromString(str string) (*Id, error) {
@@ -54,6 +65,11 @@ func (s *Storage) AddStreamValue(args Value) (string, error) {
 		return "", err
 	}
 
+	err = id.ValidateMin()
+	if err != nil {
+		return "", err
+	}
+
 	if s.storage[key] == nil {
 		s.storage[key] = &StorageValue{Type: "stream", CreatedAt: time.Now(), Value: []LogEntry{}}
 	}
@@ -61,8 +77,9 @@ func (s *Storage) AddStreamValue(args Value) (string, error) {
 	if prev := s.storage[key].Value; prev != nil && len(prev.([]LogEntry)) != 0 {
 		entries := s.storage[key].Value.([]LogEntry)
 		last := entries[len(entries)-1]
-		if !id.IsValidTo(&last.Id) {
-			return "", errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+		err := id.ValidateOrder(&last.Id)
+		if err != nil {
+			return "", err
 		}
 	}
 
