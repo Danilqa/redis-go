@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -11,9 +12,33 @@ type Id struct {
 	Seq uint64
 }
 
-func (id *Id) toString() string {
-	ms := strconv.FormatInt(int64(id.Ms), 10)
-	seq := strconv.FormatInt(int64(id.Seq), 10)
+func (new *Id) IsValidTo(prev *Id) bool {
+	if new.Ms > prev.Ms {
+		return true
+	}
+	if new.Ms < prev.Ms {
+		return false
+	}
+	return new.Seq > prev.Seq
+}
+
+func IdFromString(str string) (*Id, error) {
+	idPair := strings.Split(str, "-")
+	ms, err := strconv.ParseInt(idPair[0], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	seq, err := strconv.ParseInt(idPair[1], 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	id := Id{Ms: uint64(ms), Seq: uint64(seq)}
+	return &id, nil
+}
+
+func (new *Id) toString() string {
+	ms := strconv.FormatInt(int64(new.Ms), 10)
+	seq := strconv.FormatInt(int64(new.Seq), 10)
 	return strings.Join([]string{ms, seq}, "-")
 }
 
@@ -24,22 +49,22 @@ type LogEntry struct {
 
 func (s *Storage) AddStreamValue(args Value) (string, error) {
 	key := args.Array[1].Str
-	idPair := strings.Split(args.Array[2].Str, "-")
-
-	ms, err := strconv.ParseInt(idPair[0], 10, 64)
+	id, err := IdFromString(args.Array[2].Str)
 	if err != nil {
 		return "", err
 	}
 
-	seq, err := strconv.ParseInt(idPair[1], 10, 64)
-	if err != nil {
-		return "", err
+	if prev := s.storage[key].Value; prev != nil && len(prev.([]LogEntry)) != 0 {
+		entries := s.storage[key].Value.([]LogEntry)
+		last := entries[len(entries)-1]
+		if !id.IsValidTo(&last.Id) {
+			return "", errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+		}
 	}
 
-	id := Id{Ms: uint64(ms), Seq: uint64(seq)}
 	fields := Map(args.Array[2:], func(item Value, _ int) string { return item.Str })
 
-	logEntry := LogEntry{Id: id, Fields: fields}
+	logEntry := LogEntry{Id: *id, Fields: fields}
 	if s.storage[key] == nil {
 		s.storage[key] = &StorageValue{Type: "stream", CreatedAt: time.Now(), Value: []LogEntry{}}
 	}
