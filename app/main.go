@@ -159,7 +159,7 @@ func (app *App) handleConnection(conn net.Conn) {
 				continue
 			}
 
-			conn.Write([]byte(ToSimpleString(id)))
+			conn.Write([]byte(ToBulkString(id)))
 		default:
 			err := fmt.Sprintf("ERR unknown command '%s'", command)
 			conn.Write([]byte(ToSimpleError(err)))
