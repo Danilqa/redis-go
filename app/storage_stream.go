@@ -54,6 +54,10 @@ func (s *Storage) AddStreamValue(args Value) (string, error) {
 		return "", err
 	}
 
+	if s.storage[key] == nil {
+		s.storage[key] = &StorageValue{Type: "stream", CreatedAt: time.Now(), Value: []LogEntry{}}
+	}
+
 	if prev := s.storage[key].Value; prev != nil && len(prev.([]LogEntry)) != 0 {
 		entries := s.storage[key].Value.([]LogEntry)
 		last := entries[len(entries)-1]
@@ -65,9 +69,6 @@ func (s *Storage) AddStreamValue(args Value) (string, error) {
 	fields := Map(args.Array[2:], func(item Value, _ int) string { return item.Str })
 
 	logEntry := LogEntry{Id: *id, Fields: fields}
-	if s.storage[key] == nil {
-		s.storage[key] = &StorageValue{Type: "stream", CreatedAt: time.Now(), Value: []LogEntry{}}
-	}
 	s.storage[key].Value = append(s.storage[key].Value.([]LogEntry), logEntry)
 
 	return logEntry.Id.toString(), nil
