@@ -47,10 +47,12 @@ func (s *Storage) createStreamID(str string, last *streamID) (*streamID, error) 
 		return nil, fmt.Errorf("invalid ms in %q: %w", str, err)
 	}
 
-	var seq uint64 = 1
+	var seq uint64 = 0
 	switch {
-	case seqStr == "*" && last != nil:
+	case seqStr == "*" && last != nil && last.Ms == ms:
 		seq = last.Seq + 1
+	case seqStr == "*" && ms == 0:
+		seq = 1
 	case seqStr != "*":
 		seq, err = strconv.ParseUint(seqStr, 10, 64)
 		if err != nil {
