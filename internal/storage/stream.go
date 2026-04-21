@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,9 @@ func (id *streamID) validateMin() error {
 }
 
 func (id *streamID) validateOrder(prev *streamID) error {
+	if prev == nil {
+		return nil
+	}
 	if id.Ms > prev.Ms {
 		return nil
 	}
@@ -32,17 +36,29 @@ func (id *streamID) validateOrder(prev *streamID) error {
 	return errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 }
 
-func parseStreamID(str string) (*streamID, error) {
-	pair := strings.Split(str, "-")
-	ms, err := strconv.ParseInt(pair[0], 10, 64)
-	if err != nil {
-		return nil, err
+func (s *Storage) createStreamID(str string, last *streamID) (*streamID, error) {
+	msStr, seqStr, ok := strings.Cut(str, "-")
+	if !ok {
+		return nil, fmt.Errorf("invalid stream ID %q: expected ms-seq", str)
 	}
-	seq, err := strconv.ParseInt(pair[1], 10, 64)
+
+	ms, err := strconv.ParseUint(msStr, 10, 64)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid ms in %q: %w", str, err)
 	}
-	return &streamID{Ms: uint64(ms), Seq: uint64(seq)}, nil
+
+	var seq uint64 = 1
+	switch {
+	case seqStr == "*" && last != nil:
+		seq = last.Seq + 1
+	case seqStr != "*":
+		seq, err = strconv.ParseUint(seqStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid seq in %q: %w", str, err)
+		}
+	}
+
+	return &streamID{Ms: ms, Seq: seq}, nil
 }
 
 func (id *streamID) string() string {
@@ -57,7 +73,8 @@ type logEntry struct {
 }
 
 func (s *Storage) XAdd(key, idStr string, fields []string) (string, error) {
-	id, err := parseStreamID(idStr)
+	lastId := s.getLastId(key)
+	id, err := s.createStreamID(idStr, lastId)
 	if err != nil {
 		return "", err
 	}
@@ -70,16 +87,25 @@ func (s *Storage) XAdd(key, idStr string, fields []string) (string, error) {
 		s.storage[key] = &storageValue{Type: "stream", CreatedAt: time.Now(), Value: []logEntry{}}
 	}
 
-	if prev := s.storage[key].Value; prev != nil && len(prev.([]logEntry)) != 0 {
-		entries := s.storage[key].Value.([]logEntry)
-		last := entries[len(entries)-1]
-		if err := id.validateOrder(&last.ID); err != nil {
-			return "", err
-		}
+	if err := id.validateOrder(lastId); err != nil {
+		return "", err
 	}
 
 	entry := logEntry{ID: *id, Fields: fields}
 	s.storage[key].Value = append(s.storage[key].Value.([]logEntry), entry)
 
 	return entry.ID.string(), nil
+}
+
+func (s *Storage) getLastId(key string) *streamID {
+	item := s.storage[key]
+	if item == nil {
+		return nil
+	}
+	entries, ok := item.Value.([]logEntry)
+	if !ok || len(entries) == 0 {
+		return nil
+	}
+	id := entries[len(entries)-1].ID
+	return &id
 }
