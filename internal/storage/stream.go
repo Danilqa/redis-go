@@ -37,6 +37,15 @@ func (id *streamID) validateOrder(prev *streamID) error {
 }
 
 func (s *Storage) createStreamID(str string, last *streamID) (*streamID, error) {
+	if str == "*" {
+		now := uint64(time.Now().UnixMilli())
+		if last == nil {
+			return &streamID{Ms: now, Seq: 0}, nil
+		}
+		if last.Ms == now {
+			return &streamID{Ms: now, Seq: last.Seq + 1}, nil
+		}
+	}
 	msStr, seqStr, ok := strings.Cut(str, "-")
 	if !ok {
 		return nil, fmt.Errorf("invalid stream ID %q: expected ms-seq", str)
