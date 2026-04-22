@@ -208,8 +208,8 @@ func (srv *Server) handleBLPop(args resp.Value) string {
 func (srv *Server) handleXAdd(args resp.Value) string {
 	key := args.Array[1].Str
 	idStr := args.Array[2].Str
-	fields := make([]string, 0, len(args.Array)-2)
-	for _, v := range args.Array[2:] {
+	fields := make([]string, 0, len(args.Array)-3)
+	for _, v := range args.Array[3:] {
 		fields = append(fields, v.Str)
 	}
 
@@ -221,6 +221,9 @@ func (srv *Server) handleXAdd(args resp.Value) string {
 }
 
 func (srv *Server) handleXRange(args resp.Value) string {
+	if len(args.Array) < 4 {
+		return resp.SimpleError("ERR wrong number of arguments for 'xrange' command")
+	}
 	key := args.Array[1].Str
 	from := args.Array[2].Str
 	to := args.Array[3].Str
@@ -229,16 +232,15 @@ func (srv *Server) handleXRange(args resp.Value) string {
 		return resp.SimpleError(err.Error())
 	}
 	res := []string{}
-	for _, v := range *entries {
-		fields := []string{}
-		for _, v := range v.Fields {
-			fields = append(fields, resp.BulkString(v))
+	for _, entry := range entries {
+		fields := make([]string, 0, len(entry.Fields))
+		for _, f := range entry.Fields {
+			fields = append(fields, resp.BulkString(f))
 		}
-		item := []string{
-			resp.BulkString(v.ID.String()),
+		res = append(res, resp.Array([]string{
+			resp.BulkString(entry.ID.String()),
 			resp.Array(fields),
-		}
-		res = append(res, resp.Array(item))
+		}))
 	}
 	return resp.Array(res)
 }

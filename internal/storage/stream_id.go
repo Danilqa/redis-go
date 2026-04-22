@@ -13,9 +13,18 @@ type streamID struct {
 	Seq uint64
 }
 
-type searchStreamID struct {
-	Ms  uint64
-	Seq *uint64
+func (a streamID) cmp(b streamID) int {
+	switch {
+	case a.Ms != b.Ms && a.Ms < b.Ms:
+		return -1
+	case a.Ms != b.Ms:
+		return 1
+	case a.Seq < b.Seq:
+		return -1
+	case a.Seq > b.Seq:
+		return 1
+	}
+	return 0
 }
 
 func (id *streamID) validateMin() error {
@@ -83,28 +92,18 @@ func (id *streamID) String() string {
 	return strings.Join([]string{ms, seq}, "-")
 }
 
-func parseSearchStreamId(str string) (*searchStreamID, error) {
-	if strings.Count(str, "-") == 0 {
-		ms, err := strconv.ParseUint(str, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid ms in %q: %w", str, err)
-		}
-		return &searchStreamID{Ms: ms, Seq: nil}, nil
-	}
-
-	msStr, seqStr, ok := strings.Cut(str, "-")
+func parseRangeStreamID(str string, defaultSeq uint64) (streamID, error) {
+	msStr, seqStr, hasSeq := strings.Cut(str, "-")
 	ms, err := strconv.ParseUint(msStr, 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("invalid seq in %q: %w", str, err)
+		return streamID{}, fmt.Errorf("invalid ms in %q: %w", str, err)
 	}
-	if !ok {
-		return nil, fmt.Errorf("invalid stream ID %q: expected ms-seq", str)
+	seq := defaultSeq
+	if hasSeq {
+		seq, err = strconv.ParseUint(seqStr, 10, 64)
+		if err != nil {
+			return streamID{}, fmt.Errorf("invalid seq in %q: %w", str, err)
+		}
 	}
-
-	seq, err := strconv.ParseUint(seqStr, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid seq in %q: %w", str, err)
-	}
-
-	return &searchStreamID{Ms: ms, Seq: &seq}, nil
+	return streamID{Ms: ms, Seq: seq}, nil
 }

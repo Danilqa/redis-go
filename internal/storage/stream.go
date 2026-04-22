@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -48,36 +49,30 @@ func (s *Storage) getLastId(key string) *streamID {
 	return &id
 }
 
-func (s *Storage) XRange(key string, from string, to string) (*[]*logEntry, error) {
-	item := s.storage[key]
-	if item == nil {
-		return nil, fmt.Errorf("ERR key not found")
-	}
-	entries, ok := item.Value.([]logEntry)
-	if !ok {
-		return nil, fmt.Errorf("ERR key not found")
-	}
-	if len(entries) == 0 {
-		return &[]*logEntry{}, nil
-	}
-
-	fromId, err := parseSearchStreamId(from)
+func (s *Storage) XRange(key string, from string, to string) ([]logEntry, error) {
+	fromID, err := parseRangeStreamID(from, 0)
 	if err != nil {
 		return nil, fmt.Errorf("ERR invalid from")
 	}
-
-	toId, err := parseSearchStreamId(to)
+	toID, err := parseRangeStreamID(to, math.MaxUint64)
 	if err != nil {
 		return nil, fmt.Errorf("ERR invalid to")
 	}
-	result := []*logEntry{}
-	for _, v := range entries {
-		isLeftMatch := v.ID.Ms == fromId.Ms && (fromId.Seq == nil || *fromId.Seq >= v.ID.Seq)
-		isRightMatch := v.ID.Ms == toId.Ms && (toId.Seq == nil || *toId.Seq <= v.ID.Seq)
-		if isLeftMatch && isRightMatch {
-			result = append(result, &v)
-		}
+
+	item := s.storage[key]
+	if item == nil {
+		return []logEntry{}, nil
+	}
+	entries, ok := item.Value.([]logEntry)
+	if !ok {
+		return []logEntry{}, nil
 	}
 
-	return &result, nil
+	result := []logEntry{}
+	for _, e := range entries {
+		if e.ID.cmp(fromID) >= 0 && e.ID.cmp(toID) <= 0 {
+			result = append(result, e)
+		}
+	}
+	return result, nil
 }
