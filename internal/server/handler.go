@@ -63,6 +63,8 @@ func (srv *Server) dispatch(args resp.Value) string {
 		return resp.SimpleString(srv.storage.GetType(args.Array[1].Str))
 	case "XADD":
 		return srv.handleXAdd(args)
+	case "XRANGE":
+		return srv.handleXRange(args)
 	default:
 		return resp.SimpleError(fmt.Sprintf("ERR unknown command '%s'", command))
 	}
@@ -216,4 +218,27 @@ func (srv *Server) handleXAdd(args resp.Value) string {
 		return resp.SimpleError(err.Error())
 	}
 	return resp.BulkString(id)
+}
+
+func (srv *Server) handleXRange(args resp.Value) string {
+	key := args.Array[1].Str
+	from := args.Array[2].Str
+	to := args.Array[3].Str
+	entries, err := srv.storage.XRange(key, from, to)
+	if err != nil {
+		return resp.SimpleError(err.Error())
+	}
+	res := []string{}
+	for _, v := range *entries {
+		fields := []string{}
+		for _, v := range v.Fields {
+			fields = append(fields, resp.BulkString(v))
+		}
+		item := []string{
+			resp.BulkString(v.ID.String()),
+			resp.Array(fields),
+		}
+		res = append(res, resp.Array(item))
+	}
+	return resp.Array(res)
 }
