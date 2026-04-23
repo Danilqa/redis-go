@@ -92,13 +92,16 @@ func (id *streamID) String() string {
 	return strings.Join([]string{ms, seq}, "-")
 }
 
-func parseRangeStreamID(str string, defaultSeq uint64) (streamID, error) {
+func parseRangeStreamID(str string, defaultBound uint64) (streamID, error) {
+	if str == "-" || str == "+" {
+		return streamID{Ms: defaultBound, Seq: defaultBound}, nil
+	}
 	msStr, seqStr, hasSeq := strings.Cut(str, "-")
 	ms, err := strconv.ParseUint(msStr, 10, 64)
 	if err != nil {
 		return streamID{}, fmt.Errorf("invalid ms in %q: %w", str, err)
 	}
-	seq := defaultSeq
+	seq := defaultBound
 	if hasSeq {
 		seq, err = strconv.ParseUint(seqStr, 10, 64)
 		if err != nil {
