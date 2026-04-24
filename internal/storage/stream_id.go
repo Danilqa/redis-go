@@ -50,7 +50,25 @@ func (id *streamID) validateOrder(prev *streamID) error {
 	return errors.New("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 }
 
-func (s *Storage) createStreamID(str string, last *streamID) (*streamID, error) {
+func createStreamID(str string) (*streamID, error) {
+	msStr, seqStr, ok := strings.Cut(str, "-")
+	if !ok {
+		return nil, fmt.Errorf("invalid format")
+	}
+	seq, err := strconv.ParseUint(seqStr, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid seq in %q: %w", str, err)
+	}
+
+	ms, err := strconv.ParseUint(msStr, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid seq in %q: %w", str, err)
+	}
+
+	return &streamID{Ms: ms, Seq: seq}, nil
+}
+
+func (s *Storage) createOrderedStreamID(str string, last *streamID) (*streamID, error) {
 	if str == "*" {
 		now := uint64(time.Now().UnixMilli())
 		if last == nil {
@@ -92,8 +110,8 @@ func (id *streamID) String() string {
 	return strings.Join([]string{ms, seq}, "-")
 }
 
-func parseRangeStreamID(str string, defaultBound uint64) (streamID, error) {
-	if str == "-" || str == "+" {
+func createRangeStreamID(str string, defaultBound uint64) (streamID, error) {
+	if str == "-" || str == "_" {
 		return streamID{Ms: defaultBound, Seq: defaultBound}, nil
 	}
 	msStr, seqStr, hasSeq := strings.Cut(str, "-")

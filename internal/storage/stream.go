@@ -13,7 +13,7 @@ type logEntry struct {
 
 func (s *Storage) XAdd(key, idStr string, fields []string) (string, error) {
 	lastId := s.getLastId(key)
-	id, err := s.createStreamID(idStr, lastId)
+	id, err := s.createOrderedStreamID(idStr, lastId)
 	if err != nil {
 		return "", err
 	}
@@ -50,11 +50,11 @@ func (s *Storage) getLastId(key string) *streamID {
 }
 
 func (s *Storage) XRange(key string, from string, to string) ([]logEntry, error) {
-	fromID, err := parseRangeStreamID(from, 0)
+	fromID, err := createRangeStreamID(from, 0)
 	if err != nil {
 		return nil, fmt.Errorf("ERR invalid from")
 	}
-	toID, err := parseRangeStreamID(to, math.MaxUint64)
+	toID, err := createRangeStreamID(to, math.MaxUint64)
 	if err != nil {
 		return nil, fmt.Errorf("ERR invalid to")
 	}
@@ -71,6 +71,26 @@ func (s *Storage) XRange(key string, from string, to string) ([]logEntry, error)
 	result := []logEntry{}
 	for _, e := range entries {
 		if e.ID.cmp(fromID) >= 0 && e.ID.cmp(toID) <= 0 {
+			result = append(result, e)
+		}
+	}
+	return result, nil
+}
+
+func (s *Storage) XRead(key string, id string) ([]logEntry, error) {
+	fromID, err := createStreamID(id)
+	if err != nil {
+		return nil, fmt.Errorf("ERR invalid from")
+	}
+
+	item := s.storage[key]
+	entries, ok := item.Value.([]logEntry)
+	if !ok {
+		return []logEntry{}, nil
+	}
+	result := []logEntry{}
+	for _, e := range entries {
+		if e.ID.cmp(*fromID) >= 0 {
 			result = append(result, e)
 		}
 	}

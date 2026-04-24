@@ -65,6 +65,8 @@ func (srv *Server) dispatch(args resp.Value) string {
 		return srv.handleXAdd(args)
 	case "XRANGE":
 		return srv.handleXRange(args)
+	case "XREAD":
+		return srv.handleXRead(args)
 	default:
 		return resp.SimpleError(fmt.Sprintf("ERR unknown command '%s'", command))
 	}
@@ -243,4 +245,29 @@ func (srv *Server) handleXRange(args resp.Value) string {
 		}))
 	}
 	return resp.Array(res)
+}
+
+func (srv *Server) handleXRead(args resp.Value) string {
+	if len(args.Array) < 4 {
+		return resp.SimpleError("ERR wrong number of arguments for 'xrange' command")
+	}
+	key := args.Array[1].Str
+	from := args.Array[2].Str
+	entries, err := srv.storage.XRead(key, from)
+	if err != nil {
+		return resp.SimpleError(err.Error())
+	}
+	entriesStrings := []string{}
+	for _, entry := range entries {
+		fields := make([]string, 0, len(entry.Fields))
+		for _, f := range entry.Fields {
+			fields = append(fields, resp.BulkString(f))
+		}
+		entriesStrings = append(entriesStrings, resp.Array([]string{
+			resp.BulkString(entry.ID.String()),
+			resp.Array(fields),
+		}))
+	}
+	respArray := resp.BulkString(resp.Array(entriesStrings))
+	return resp.Array([]string{resp.BulkString(key), respArray})
 }
