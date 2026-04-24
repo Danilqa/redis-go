@@ -248,7 +248,7 @@ func (srv *Server) handleXRange(args resp.Value) string {
 }
 
 func (srv *Server) handleXRead(args resp.Value) string {
-	if len(args.Array) < 4 {
+	if len(args.Array) < 3 {
 		return resp.SimpleError("ERR wrong number of arguments for 'xrange' command")
 	}
 	key := args.Array[1].Str
