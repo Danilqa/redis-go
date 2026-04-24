@@ -248,11 +248,11 @@ func (srv *Server) handleXRange(args resp.Value) string {
 }
 
 func (srv *Server) handleXRead(args resp.Value) string {
-	if len(args.Array) < 3 {
+	if len(args.Array) < 4 {
 		return resp.SimpleError("ERR wrong number of arguments for 'xrange' command")
 	}
-	key := args.Array[1].Str
-	from := args.Array[2].Str
+	key := args.Array[2].Str
+	from := args.Array[3].Str
 	entries, err := srv.storage.XRead(key, from)
 	if err != nil {
 		return resp.SimpleError(err.Error())
@@ -268,6 +268,7 @@ func (srv *Server) handleXRead(args resp.Value) string {
 			resp.Array(fields),
 		}))
 	}
-	respArray := resp.BulkString(resp.Array(entriesStrings))
-	return resp.Array([]string{resp.BulkString(key), respArray})
+	respArray := resp.Array(entriesStrings)
+	respItemByKey := resp.Array([]string{resp.BulkString(key), respArray})
+	return resp.Array([]string{respItemByKey})
 }
