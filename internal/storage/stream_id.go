@@ -111,7 +111,7 @@ func (id *streamID) String() string {
 }
 
 func createRangeStreamID(str string, defaultBound uint64) (streamID, error) {
-	if str == "-" || str == "_" {
+	if str == "-" || str == "+" {
 		return streamID{Ms: defaultBound, Seq: defaultBound}, nil
 	}
 	msStr, seqStr, hasSeq := strings.Cut(str, "-")
