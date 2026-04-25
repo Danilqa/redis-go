@@ -251,24 +251,44 @@ func (srv *Server) handleXRead(args resp.Value) string {
 	if len(args.Array) < 4 {
 		return resp.SimpleError("ERR wrong number of arguments for 'xrange' command")
 	}
-	key := args.Array[2].Str
-	from := args.Array[3].Str
-	entries, err := srv.storage.XRead(key, from)
-	if err != nil {
-		return resp.SimpleError(err.Error())
-	}
-	entriesStrings := []string{}
-	for _, entry := range entries {
-		fields := make([]string, 0, len(entry.Fields))
-		for _, f := range entry.Fields {
-			fields = append(fields, resp.BulkString(f))
+	keyArgs := []string{}
+	fromArgs := []string{}
+
+	queriesCount := ((len(args.Array) - 2) / 2)
+	usedArgs := 2
+	for i, v := range args.Array[usedArgs:] {
+		if i >= queriesCount {
+			fromArgs = append(fromArgs, v.Str)
+		} else {
+			keyArgs = append(keyArgs, v.Str)
 		}
-		entriesStrings = append(entriesStrings, resp.Array([]string{
-			resp.BulkString(entry.ID.String()),
-			resp.Array(fields),
-		}))
 	}
-	respArray := resp.Array(entriesStrings)
-	respItemByKey := resp.Array([]string{resp.BulkString(key), respArray})
-	return resp.Array([]string{respItemByKey})
+
+	fmt.Println(keyArgs)
+	fmt.Println(fromArgs)
+
+	r := []string{}
+	for i := range queriesCount {
+		key := keyArgs[i]
+		from := fromArgs[i]
+		entries, err := srv.storage.XRead(key, from)
+		if err != nil {
+			return resp.SimpleError(err.Error())
+		}
+		entrs := []string{}
+		for _, entry := range entries {
+			fields := make([]string, 0, len(entry.Fields))
+			for _, f := range entry.Fields {
+				fields = append(fields, resp.BulkString(f))
+			}
+			entrs = append(entrs, resp.Array([]string{
+				resp.BulkString(entry.ID.String()),
+				resp.Array(fields),
+			}))
+		}
+		kToEntrs := resp.Array([]string{resp.BulkString(key), resp.Array(entrs)})
+		r = append(r, kToEntrs)
+	}
+
+	return resp.Array(r)
 }
