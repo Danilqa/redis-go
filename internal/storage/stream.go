@@ -100,12 +100,19 @@ func (s *Storage) XRead(
 	s.mu.Lock()
 
 	parsedFromIDs := make([]streamID, 0, len(keys))
-	for _, idStr := range fromIDs {
-		id, err := createStreamID(idStr)
-		if err != nil {
-			s.mu.Unlock()
-			return nil, fmt.Errorf("ERR invalid from")
+	for i, idStr := range fromIDs {
+		var id *streamID
+		if idStr == "$" {
+			id = s.getLastId(keys[i])
+		} else {
+			createdId, err := createStreamID(idStr)
+			if err != nil {
+				s.mu.Unlock()
+				return nil, fmt.Errorf("ERR invalid from")
+			}
+			id = createdId
 		}
+
 		parsedFromIDs = append(parsedFromIDs, *id)
 	}
 

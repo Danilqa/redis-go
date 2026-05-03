@@ -37,12 +37,9 @@ func (srv *Server) dispatch(args resp.Value) string {
 
 	switch command {
 	case "PING":
-		return resp.SimpleString("PONG")
+		return srv.handlePing()
 	case "ECHO":
-		if len(args.Array) < 2 {
-			return resp.SimpleError("ERR wrong number of arguments for 'echo' command")
-		}
-		return resp.BulkString(args.Array[1].Str)
+		return srv.handleEcho(args)
 	case "SET":
 		return srv.handleSet(args)
 	case "GET":
@@ -60,7 +57,7 @@ func (srv *Server) dispatch(args resp.Value) string {
 	case "BLPOP":
 		return srv.handleBLPop(args)
 	case "TYPE":
-		return resp.SimpleString(srv.storage.GetType(args.Array[1].Str))
+		return srv.handleType(args)
 	case "XADD":
 		return srv.handleXAdd(args)
 	case "XRANGE":
@@ -70,6 +67,21 @@ func (srv *Server) dispatch(args resp.Value) string {
 	default:
 		return resp.SimpleError(fmt.Sprintf("ERR unknown command '%s'", command))
 	}
+}
+
+func (srv *Server) handlePing() string {
+	return resp.SimpleString("PONG")
+}
+
+func (srv *Server) handleType(args resp.Value) string {
+	return resp.SimpleString(srv.storage.GetType(args.Array[1].Str))
+}
+
+func (srv *Server) handleEcho(args resp.Value) string {
+	if len(args.Array) < 2 {
+		return resp.SimpleError("ERR wrong number of arguments for 'echo' command")
+	}
+	return resp.BulkString(args.Array[1].Str)
 }
 
 func (srv *Server) handleSet(args resp.Value) string {
