@@ -125,9 +125,9 @@ func (s *Storage) Push(key string, values []string, isLeft bool) int {
 }
 
 func (s *Storage) notifyWaiters(key string, row *storageValue) {
-	if waiters, ok := s.waiters[key]; ok && len(waiters) > 0 {
+	if waiters, ok := s.listWaiters[key]; ok && len(waiters) > 0 {
 		ch := waiters[0]
-		s.waiters[key] = waiters[1:]
+		s.listWaiters[key] = waiters[1:]
 		l := row.Value.(*linkedList)
 		vals, _ := l.pop(1)
 		ch <- PopResult{Key: key, Value: vals[0]}
@@ -165,7 +165,7 @@ func (s *Storage) BLPop(key string, timeout time.Duration) (*PopResult, error) {
 	}
 
 	ch := make(chan PopResult, 1)
-	s.waiters[key] = append(s.waiters[key], ch)
+	s.listWaiters[key] = append(s.listWaiters[key], ch)
 	s.mu.Unlock()
 
 	if timeout == 0 {
@@ -178,8 +178,18 @@ func (s *Storage) BLPop(key string, timeout time.Duration) (*PopResult, error) {
 		return &result, nil
 	case <-time.After(timeout):
 		s.mu.Lock()
-		s.removeWaiter(key, ch)
+		s.removeListWaiter(key, ch)
 		s.mu.Unlock()
 		return nil, nil
+	}
+}
+
+func (s *Storage) removeListWaiter(key string, ch chan PopResult) {
+	waiters := s.listWaiters[key]
+	for i, w := range waiters {
+		if w == ch {
+			s.listWaiters[key] = append(waiters[:i], waiters[i+1:]...)
+			return
+		}
 	}
 }

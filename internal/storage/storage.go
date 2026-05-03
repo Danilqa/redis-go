@@ -5,7 +5,14 @@ import "sync"
 type Storage struct {
 	mu      sync.RWMutex
 	storage map[string]*storageValue
-	waiters map[string][]chan PopResult
+
+	listWaiters   map[string][]chan PopResult
+	streamWaiters map[string][]*streamWaiter
+}
+
+type streamWaiter struct {
+	fromID streamID
+	ch     chan StreamReadResult
 }
 
 type PopResult struct {
@@ -15,8 +22,9 @@ type PopResult struct {
 
 func New() *Storage {
 	return &Storage{
-		storage: make(map[string]*storageValue),
-		waiters: make(map[string][]chan PopResult),
+		storage:       make(map[string]*storageValue),
+		listWaiters:   make(map[string][]chan PopResult),
+		streamWaiters: make(map[string][]*streamWaiter),
 	}
 }
 
@@ -25,14 +33,4 @@ func (s *Storage) GetType(key string) string {
 		return v.Type
 	}
 	return "none"
-}
-
-func (s *Storage) removeWaiter(key string, ch chan PopResult) {
-	waiters := s.waiters[key]
-	for i, w := range waiters {
-		if w == ch {
-			s.waiters[key] = append(waiters[:i], waiters[i+1:]...)
-			return
-		}
-	}
 }

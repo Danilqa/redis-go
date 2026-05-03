@@ -249,34 +249,54 @@ func (srv *Server) handleXRange(args resp.Value) string {
 
 func (srv *Server) handleXRead(args resp.Value) string {
 	if len(args.Array) < 4 {
-		return resp.SimpleError("ERR wrong number of arguments for 'xrange' command")
+		return resp.SimpleError("ERR wrong number of arguments for 'xread' command")
 	}
-	keyArgs := []string{}
-	fromArgs := []string{}
 
-	queriesCount := ((len(args.Array) - 2) / 2)
-	usedArgs := 2
-	for i, v := range args.Array[usedArgs:] {
-		if i >= queriesCount {
-			fromArgs = append(fromArgs, v.Str)
-		} else {
-			keyArgs = append(keyArgs, v.Str)
+	isBlock := strings.ToUpper(args.Array[1].Str) == "BLOCK"
+	beforeQuery := 2
+	var timeoutMs time.Duration
+	if isBlock {
+		if len(args.Array) < 6 {
+			return resp.SimpleError("ERR wrong number of arguments for 'xread' command")
 		}
+		d, err := time.ParseDuration(fmt.Sprintf("%sms", args.Array[2].Str))
+		if err != nil {
+			return resp.SimpleError("ERR invalid timeout argument")
+		}
+		timeoutMs = d
+		beforeQuery = 4
 	}
 
-	fmt.Println(keyArgs)
-	fmt.Println(fromArgs)
+	queryArgs := args.Array[beforeQuery:]
+	if len(queryArgs)%2 != 0 {
+		return resp.SimpleError("ERR Unbalanced 'xread' list of streams: for each stream key an ID or '$' must be specified.")
+	}
+	queriesCount := len(queryArgs) / 2
+
+	keys := make([]string, 0, queriesCount)
+	fromIDs := make([]string, 0, queriesCount)
+	for _, v := range queryArgs[:queriesCount] {
+		keys = append(keys, v.Str)
+	}
+	for _, v := range queryArgs[queriesCount:] {
+		fromIDs = append(fromIDs, v.Str)
+	}
+
+	results, err := srv.storage.XRead(keys, fromIDs, isBlock, timeoutMs)
+	if err != nil {
+		return resp.SimpleError(err.Error())
+	}
+	if results == nil {
+		return resp.NullArray()
+	}
 
 	r := []string{}
-	for i := range queriesCount {
-		key := keyArgs[i]
-		from := fromArgs[i]
-		entries, err := srv.storage.XRead(key, from)
-		if err != nil {
-			return resp.SimpleError(err.Error())
+	for _, res := range results {
+		if len(res.Entries) == 0 {
+			continue
 		}
 		entrs := []string{}
-		for _, entry := range entries {
+		for _, entry := range res.Entries {
 			fields := make([]string, 0, len(entry.Fields))
 			for _, f := range entry.Fields {
 				fields = append(fields, resp.BulkString(f))
@@ -286,9 +306,11 @@ func (srv *Server) handleXRead(args resp.Value) string {
 				resp.Array(fields),
 			}))
 		}
-		kToEntrs := resp.Array([]string{resp.BulkString(key), resp.Array(entrs)})
-		r = append(r, kToEntrs)
+		r = append(r, resp.Array([]string{resp.BulkString(res.Key), resp.Array(entrs)}))
 	}
 
+	if len(r) == 0 {
+		return resp.NullArray()
+	}
 	return resp.Array(r)
 }
