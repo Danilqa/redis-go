@@ -15,6 +15,8 @@ func (srv *Server) handleConnection(conn net.Conn) {
 
 	parser := resp.NewParser(conn)
 
+	transactionQueue := []func(){}
+	transactionMode := false
 	for {
 		args, err := parser.Parse()
 		if err != nil {
@@ -27,8 +29,30 @@ func (srv *Server) handleConnection(conn net.Conn) {
 			continue
 		}
 
-		reply := srv.dispatch(args)
-		conn.Write([]byte(reply))
+		command := strings.ToLower(args.Array[0].Str)
+		if command == "multi" {
+			transactionMode = true
+			conn.Write([]byte(resp.SimpleString("OK")))
+			continue
+		}
+		if command == "exec" {
+			transactionMode = false
+			for _, c := range transactionQueue {
+				c()
+			}
+			continue
+		}
+
+		if transactionMode {
+			transactionQueue = append(transactionQueue, func() {
+				reply := srv.dispatch(args)
+				conn.Write([]byte(reply))
+			})
+			conn.Write([]byte(resp.SimpleString("QUEUED")))
+		} else {
+			reply := srv.dispatch(args)
+			conn.Write([]byte(reply))
+		}
 	}
 }
 
