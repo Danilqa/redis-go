@@ -30,6 +30,12 @@ func (srv *Server) handleConnection(conn net.Conn) {
 		}
 
 		command := strings.ToLower(args.Array[0].Str)
+		if command == "discard" {
+			transactionMode = false
+			transactionQueue = []func() string{}
+			conn.Write([]byte(resp.SimpleString("OK")))
+			continue
+		}
 		if command == "multi" {
 			transactionMode = true
 			conn.Write([]byte(resp.SimpleString("OK")))
