@@ -13,12 +13,9 @@ import (
 func (srv *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	parser := resp.NewParser(conn)
-
-	transactionQueue := []func() string{}
-	transactionMode := false
+	sess := newSession(conn)
 	for {
-		args, err := parser.Parse()
+		args, err := sess.parser.Parse()
 		if err != nil {
 			fmt.Printf("Failed to read buffer %s", err)
 			return
@@ -29,52 +26,24 @@ func (srv *Server) handleConnection(conn net.Conn) {
 			continue
 		}
 
-		command := strings.ToLower(args.Array[0].Str)
-		if command == "discard" {
-			if transactionMode == false {
-				conn.Write([]byte(resp.SimpleError("ERR DISCARD without MULTI")))
-				continue
-			}
-			transactionMode = false
-			transactionQueue = []func() string{}
-			conn.Write([]byte(resp.SimpleString("OK")))
-			continue
-		}
-		if command == "multi" {
-			transactionMode = true
-			conn.Write([]byte(resp.SimpleString("OK")))
-			continue
-		}
-		results := []string{}
-		if command == "exec" {
-			if transactionMode == false {
-				conn.Write([]byte(resp.SimpleError("ERR EXEC without MULTI")))
-				continue
-			}
-			transactionMode = false
-			for _, cmd := range transactionQueue {
-				results = append(results, cmd())
-			}
-			conn.Write([]byte(resp.Array(results)))
-			continue
-		}
-
-		if transactionMode {
-			transactionQueue = append(transactionQueue, func() string {
-				return srv.dispatch(args)
-			})
-			conn.Write([]byte(resp.SimpleString("QUEUED")))
-		} else {
-			reply := srv.dispatch(args)
-			conn.Write([]byte(reply))
-		}
+		conn.Write([]byte(srv.dispatch(sess, args)))
 	}
 }
 
-func (srv *Server) dispatch(args resp.Value) string {
+func (srv *Server) dispatch(sess *clientSession, args resp.Value) string {
 	command := strings.ToUpper(args.Array[0].Str)
 
+	if sess.tx.Active() && command != "EXEC" && command != "DISCARD" && command != "MULTI" {
+		return sess.tx.Queue(args)
+	}
+
 	switch command {
+	case "MULTI":
+		return sess.tx.Begin()
+	case "EXEC":
+		return sess.tx.Exec(func(q resp.Value) string { return srv.dispatch(sess, q) })
+	case "DISCARD":
+		return sess.tx.Discard()
 	case "PING":
 		return srv.handlePing()
 	case "ECHO":
