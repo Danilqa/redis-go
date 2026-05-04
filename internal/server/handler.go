@@ -37,6 +37,10 @@ func (srv *Server) handleConnection(conn net.Conn) {
 		}
 		results := []string{}
 		if command == "exec" {
+			if transactionMode == false {
+				conn.Write([]byte(resp.SimpleError("ERR EXEC without MULTI")))
+				continue
+			}
 			transactionMode = false
 			for _, cmd := range transactionQueue {
 				results = append(results, cmd())
