@@ -64,6 +64,8 @@ func (srv *Server) dispatch(args resp.Value) string {
 		return srv.handleXRange(args)
 	case "XREAD":
 		return srv.handleXRead(args)
+	case "INCR":
+		return srv.handleIncr(args)
 	default:
 		return resp.SimpleError(fmt.Sprintf("ERR unknown command '%s'", command))
 	}
@@ -325,4 +327,16 @@ func (srv *Server) handleXRead(args resp.Value) string {
 		return resp.NullArray()
 	}
 	return resp.Array(r)
+}
+
+func (srv *Server) handleIncr(args resp.Value) string {
+	if len(args.Array) < 2 {
+		return resp.SimpleError("ERR wrong number of arguments for 'incr' command")
+	}
+	key := args.Array[1].Str
+	newVal, err := srv.storage.Inc(key)
+	if err != nil {
+		return resp.SimpleError(err.Error())
+	}
+	return resp.Integer(newVal)
 }
