@@ -15,7 +15,7 @@ func (srv *Server) handleConnection(conn net.Conn) {
 
 	parser := resp.NewParser(conn)
 
-	transactionQueue := []func(){}
+	transactionQueue := []func() string{}
 	transactionMode := false
 	for {
 		args, err := parser.Parse()
@@ -35,18 +35,19 @@ func (srv *Server) handleConnection(conn net.Conn) {
 			conn.Write([]byte(resp.SimpleString("OK")))
 			continue
 		}
+		results := []string{}
 		if command == "exec" {
 			transactionMode = false
-			for _, c := range transactionQueue {
-				c()
+			for _, cmd := range transactionQueue {
+				results = append(results, cmd())
 			}
+			conn.Write([]byte(resp.Array(results)))
 			continue
 		}
 
 		if transactionMode {
-			transactionQueue = append(transactionQueue, func() {
-				reply := srv.dispatch(args)
-				conn.Write([]byte(reply))
+			transactionQueue = append(transactionQueue, func() string {
+				return srv.dispatch(args)
 			})
 			conn.Write([]byte(resp.SimpleString("QUEUED")))
 		} else {
