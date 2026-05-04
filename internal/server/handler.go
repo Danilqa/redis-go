@@ -32,7 +32,7 @@ func (srv *Server) handleConnection(conn net.Conn) {
 		command := strings.ToLower(args.Array[0].Str)
 		if command == "discard" {
 			if transactionMode == false {
-				conn.Write([]byte(resp.SimpleError("ERR EXEC without MULTI")))
+				conn.Write([]byte(resp.SimpleError("ERR DISCARD without MULTI")))
 				continue
 			}
 			transactionMode = false
