@@ -74,6 +74,8 @@ func (srv *Server) dispatch(sess *clientSession, args resp.Value) string {
 		return srv.handleXRead(args)
 	case "INCR":
 		return srv.handleIncr(args)
+	case "INFO":
+		return srv.handleInfo(args)
 	default:
 		return resp.SimpleError(fmt.Sprintf("ERR unknown command '%s'", command))
 	}
@@ -347,4 +349,9 @@ func (srv *Server) handleIncr(args resp.Value) string {
 		return resp.SimpleError(err.Error())
 	}
 	return resp.Integer(newVal)
+}
+
+func (srv *Server) handleInfo(args resp.Value) string {
+	key := args.Array[1].Str
+	return resp.BulkString(srv.info.Get(key))
 }

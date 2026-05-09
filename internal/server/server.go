@@ -10,10 +10,14 @@ import (
 
 type Server struct {
 	storage *storage.Storage
+	info    *Info
 }
 
 func New(s *storage.Storage) *Server {
-	return &Server{storage: s}
+	info := Info{}
+	info["replication"] = []string{"role", "master"}
+
+	return &Server{storage: s, info: &info}
 }
 
 func (srv *Server) Run(port int) {
