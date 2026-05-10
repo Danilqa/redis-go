@@ -11,7 +11,7 @@ import (
 
 func main() {
 	portStr := flag.String("port", "6379", "port to listen on")
-	replicaOf := flag.String("replicaof", "", "<PARENT_HOST> <PARENT_PORT>")
+	replicaOf := flag.String("replicaof", "", "<LEADER_HOST> <LEADER_PORT>")
 	flag.Parse()
 
 	port, err := strconv.ParseInt(*portStr, 10, 32)
@@ -19,10 +19,14 @@ func main() {
 		panic("ERR invalid port value")
 	}
 
+	replica := parseReplica(*replicaOf)
 	srv := server.New(server.NewServerOptions{
 		Storage: storage.New(),
-		Replica: parseReplica(*replicaOf),
+		Replica: replica,
 	})
+	if srv.IsFollower() {
+		srv.ConnectToLeader()
+	}
 	srv.Run(int(port))
 }
 
