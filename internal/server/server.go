@@ -13,11 +13,25 @@ type Server struct {
 	info    *Info
 }
 
-func New(s *storage.Storage) *Server {
-	info := Info{}
-	info["replication"] = []string{"role", "master"}
+type ReplicaOptions struct {
+	Host string
+	Port int
+}
 
-	return &Server{storage: s, info: &info}
+type NewServerOptions struct {
+	Storage *storage.Storage
+	Replica *ReplicaOptions
+}
+
+func New(o NewServerOptions) *Server {
+	info := Info{}
+	if o.Replica == nil {
+		info["replication"] = []string{"role", "master"}
+	} else {
+		info["replication"] = []string{"role", "slave"}
+	}
+
+	return &Server{storage: o.Storage, info: &info}
 }
 
 func (srv *Server) Run(port int) {
