@@ -26,9 +26,13 @@ type NewServerOptions struct {
 func New(o NewServerOptions) *Server {
 	info := Info{}
 	if o.Replica == nil {
-		info["replication"] = []string{"role", "master"}
+		info["replication"] = InfoCategory{}
+		info["replication"]["role"] = "master"
+		info["replication"]["master_replid"] = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
+		info["replication"]["master_repl_offset"] = "0"
 	} else {
-		info["replication"] = []string{"role", "slave"}
+		info["replication"] = InfoCategory{}
+		info["replication"]["role"] = "slave"
 	}
 
 	return &Server{storage: o.Storage, info: &info}

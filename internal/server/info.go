@@ -5,13 +5,17 @@ import (
 	"strings"
 )
 
-type Info map[string][]string
+type Info map[string]InfoCategory
+
+type InfoCategory map[string]string
 
 func (info *Info) Get(key string) string {
 	lines := []string{}
 	for key := range *info {
-		value := (*info)[key]
-		lines = append(lines, fmt.Sprintf("%s:%s", value[0], value[1]))
+		category := (*info)[key]
+		for key := range category {
+			lines = append(lines, fmt.Sprintf("%s:%s", key, category[key]))
+		}
 	}
 	return strings.Join(lines, "")
 }
