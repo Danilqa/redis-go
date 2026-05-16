@@ -78,6 +78,7 @@ func (srv *Server) ConnectToLeader() {
 	println(pingResp)
 	request(&conn, resp.Array([]string{"REPLCONF", "listening-port", strconv.Itoa(srv.port)}))
 	request(&conn, resp.Array([]string{"REPLCONF", "capa", "psync2"}))
+	request(&conn, resp.Array([]string{"PSYNC", "?", "-1"}))
 }
 
 func request(conn *net.Conn, command string) string {
