@@ -15,22 +15,24 @@ import (
 type Server struct {
 	storage *storage.Storage
 	info    *Info
-	replica *ReplicaOptions
+	port    int
+	leader  *LeaderOptions
 }
 
-type ReplicaOptions struct {
+type LeaderOptions struct {
 	Host string
 	Port int
 }
 
 type NewServerOptions struct {
+	Port    int
 	Storage *storage.Storage
-	Replica *ReplicaOptions
+	Leader  *LeaderOptions
 }
 
 func New(o NewServerOptions) *Server {
 	info := Info{}
-	if o.Replica == nil {
+	if o.Leader == nil {
 		info["replication"] = InfoCategory{}
 		info["replication"]["role"] = "master"
 		info["replication"]["master_replid"] = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
@@ -40,7 +42,7 @@ func New(o NewServerOptions) *Server {
 		info["replication"]["role"] = "slave"
 	}
 
-	return &Server{storage: o.Storage, info: &info, replica: o.Replica}
+	return &Server{storage: o.Storage, info: &info, leader: o.Leader, port: o.Port}
 }
 
 func (srv *Server) Run(port int) {
@@ -62,25 +64,31 @@ func (srv *Server) Run(port int) {
 }
 
 func (srv *Server) IsFollower() bool {
-	return srv.replica != nil
+	return srv.leader != nil
 }
 
 func (srv *Server) ConnectToLeader() {
-	conn, err := net.Dial("tcp", net.JoinHostPort(srv.replica.Host, strconv.Itoa(srv.replica.Port)))
+	conn, err := net.Dial("tcp", net.JoinHostPort(srv.leader.Host, strconv.Itoa(srv.leader.Port)))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer conn.Close()
 
-	ping := resp.Array([]string{resp.BulkString("PING")})
-	if _, err := conn.Write([]byte(ping)); err != nil {
+	pingResp := request(&conn, resp.Array([]string{"PING"}))
+	println(pingResp)
+	request(&conn, resp.Array([]string{"REPLCONF", "listening-port", strconv.Itoa(srv.port)}))
+	request(&conn, resp.Array([]string{"REPLCONF", "capa", "psync2"}))
+}
+
+func request(conn *net.Conn, command string) string {
+	if _, err := (*conn).Write([]byte(command)); err != nil {
 		log.Fatal(err)
 	}
 
-	reader := bufio.NewReader(conn)
+	reader := bufio.NewReader(*conn)
 	line, err := reader.ReadString('\n')
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(line)
+	return line
 }

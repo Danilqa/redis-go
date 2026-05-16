@@ -19,10 +19,11 @@ func main() {
 		panic("ERR invalid port value")
 	}
 
-	replica := parseReplica(*replicaOf)
+	leader := parseLeader(*replicaOf)
 	srv := server.New(server.NewServerOptions{
 		Storage: storage.New(),
-		Replica: replica,
+		Leader:  leader,
+		Port:    int(port),
 	})
 	if srv.IsFollower() {
 		srv.ConnectToLeader()
@@ -30,7 +31,7 @@ func main() {
 	srv.Run(int(port))
 }
 
-func parseReplica(s string) *server.ReplicaOptions {
+func parseLeader(s string) *server.LeaderOptions {
 	if s == "" {
 		return nil
 	}
@@ -45,7 +46,7 @@ func parseReplica(s string) *server.ReplicaOptions {
 		panic("ERR invalid replica port value")
 	}
 
-	return &server.ReplicaOptions{
+	return &server.LeaderOptions{
 		Host: parts[0],
 		Port: int(port),
 	}

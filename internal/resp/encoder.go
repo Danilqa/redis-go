@@ -30,5 +30,19 @@ func Integer(num int) string {
 }
 
 func Array(values []string) string {
-	return fmt.Sprintf("*%d\r\n%s", len(values), strings.Join(values, ""))
+	var b strings.Builder
+	fmt.Fprintf(&b, "*%d\r\n", len(values))
+	for _, v := range values {
+		b.WriteString(BulkString(v))
+	}
+	return b.String()
+}
+
+func RawArray(elements []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "*%d\r\n", len(elements))
+	for _, e := range elements {
+		b.WriteString(e)
+	}
+	return b.String()
 }

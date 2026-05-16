@@ -45,5 +45,5 @@ func (t *transaction) Exec(run func(resp.Value) string) string {
 	for _, q := range queued {
 		results = append(results, run(q))
 	}
-	return resp.Array(results)
+	return resp.RawArray(results)
 }

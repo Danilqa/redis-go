@@ -169,11 +169,7 @@ func (srv *Server) handleLRange(args resp.Value) string {
 	}
 
 	values := srv.storage.LRange(key, start, stop)
-	arr := make([]string, 0, len(values))
-	for _, v := range values {
-		arr = append(arr, resp.BulkString(v))
-	}
-	return resp.Array(arr)
+	return resp.Array(values)
 }
 
 func (srv *Server) handleLLen(args resp.Value) string {
@@ -204,11 +200,7 @@ func (srv *Server) handleLPop(args resp.Value) string {
 	if len(values) == 1 {
 		return resp.BulkString(values[0])
 	}
-	arr := make([]string, 0, len(values))
-	for _, v := range values {
-		arr = append(arr, resp.BulkString(v))
-	}
-	return resp.Array(arr)
+	return resp.Array(values)
 }
 
 func (srv *Server) handleBLPop(args resp.Value) string {
@@ -225,10 +217,7 @@ func (srv *Server) handleBLPop(args resp.Value) string {
 	if result == nil {
 		return resp.NullArray()
 	}
-	return resp.Array([]string{
-		resp.BulkString(result.Key),
-		resp.BulkString(result.Value),
-	})
+	return resp.Array([]string{result.Key, result.Value})
 }
 
 func (srv *Server) handleXAdd(args resp.Value) string {
@@ -259,16 +248,12 @@ func (srv *Server) handleXRange(args resp.Value) string {
 	}
 	res := []string{}
 	for _, entry := range entries {
-		fields := make([]string, 0, len(entry.Fields))
-		for _, f := range entry.Fields {
-			fields = append(fields, resp.BulkString(f))
-		}
-		res = append(res, resp.Array([]string{
+		res = append(res, resp.RawArray([]string{
 			resp.BulkString(entry.ID.String()),
-			resp.Array(fields),
+			resp.Array(entry.Fields),
 		}))
 	}
-	return resp.Array(res)
+	return resp.RawArray(res)
 }
 
 func (srv *Server) handleXRead(args resp.Value) string {
@@ -321,22 +306,18 @@ func (srv *Server) handleXRead(args resp.Value) string {
 		}
 		entrs := []string{}
 		for _, entry := range res.Entries {
-			fields := make([]string, 0, len(entry.Fields))
-			for _, f := range entry.Fields {
-				fields = append(fields, resp.BulkString(f))
-			}
-			entrs = append(entrs, resp.Array([]string{
+			entrs = append(entrs, resp.RawArray([]string{
 				resp.BulkString(entry.ID.String()),
-				resp.Array(fields),
+				resp.Array(entry.Fields),
 			}))
 		}
-		r = append(r, resp.Array([]string{resp.BulkString(res.Key), resp.Array(entrs)}))
+		r = append(r, resp.RawArray([]string{resp.BulkString(res.Key), resp.RawArray(entrs)}))
 	}
 
 	if len(r) == 0 {
 		return resp.NullArray()
 	}
-	return resp.Array(r)
+	return resp.RawArray(r)
 }
 
 func (srv *Server) handleIncr(args resp.Value) string {
