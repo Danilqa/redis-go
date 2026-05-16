@@ -44,6 +44,8 @@ func (srv *Server) dispatch(sess *clientSession, args resp.Value) string {
 		return sess.tx.Exec(func(q resp.Value) string { return srv.dispatch(sess, q) })
 	case "DISCARD":
 		return sess.tx.Discard()
+	case "REPLCONF":
+		return srv.handleReplConf()
 	case "PING":
 		return srv.handlePing()
 	case "ECHO":
@@ -83,6 +85,10 @@ func (srv *Server) dispatch(sess *clientSession, args resp.Value) string {
 
 func (srv *Server) handlePing() string {
 	return resp.SimpleString("PONG")
+}
+
+func (srv *Server) handleReplConf() string {
+	return resp.SimpleString("OK")
 }
 
 func (srv *Server) handleType(args resp.Value) string {
