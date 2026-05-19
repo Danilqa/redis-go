@@ -63,6 +63,14 @@ func (srv *Server) Run(port int) {
 	}
 }
 
+func (srv *Server) GetLeaderReplId() string {
+	return (*srv.info)["replication"]["master_replid"]
+}
+
+func (srv *Server) GetLeaderReplOffset() string {
+	return (*srv.info)["replication"]["master_repl_offset"]
+}
+
 func (srv *Server) IsFollower() bool {
 	return srv.leader != nil
 }

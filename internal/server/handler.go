@@ -44,6 +44,8 @@ func (srv *Server) dispatch(sess *clientSession, args resp.Value) string {
 		return sess.tx.Exec(func(q resp.Value) string { return srv.dispatch(sess, q) })
 	case "DISCARD":
 		return sess.tx.Discard()
+	case "PSYNC":
+		return srv.handlePsync()
 	case "REPLCONF":
 		return srv.handleReplConf()
 	case "PING":
@@ -89,6 +91,11 @@ func (srv *Server) handlePing() string {
 
 func (srv *Server) handleReplConf() string {
 	return resp.SimpleString("OK")
+}
+
+func (srv *Server) handlePsync() string {
+	r := strings.Join([]string{"FULLRESYNC", srv.GetLeaderReplId(), srv.GetLeaderReplOffset()}, " ")
+	return resp.SimpleString(r)
 }
 
 func (srv *Server) handleType(args resp.Value) string {
